@@ -81,9 +81,14 @@ public class RoutingRulesPanel extends VBox {
         portCol.setMinWidth(60);
         portCol.setMaxWidth(80);
 
+        TableColumn<RoutingRule, Integer> priorityCol = new TableColumn<>("Priority");
+        priorityCol.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        priorityCol.setMinWidth(60);
+        priorityCol.setMaxWidth(80);
+
         TableColumn<RoutingRule, String> descCol = new TableColumn<>("Description");
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descCol.setMinWidth(200);
+        descCol.setMinWidth(150);
 
         // Actions column with Edit and Delete buttons (fixed width, full button text)
         TableColumn<RoutingRule, Void> actionsCol = new TableColumn<>("Actions");
@@ -128,7 +133,7 @@ public class RoutingRulesPanel extends VBox {
             }
         });
 
-        table.getColumns().addAll(pathCol, hostCol, portCol, descCol, actionsCol);
+        table.getColumns().addAll(pathCol, hostCol, portCol, priorityCol, descCol, actionsCol);
         return table;
     }
 

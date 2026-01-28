@@ -16,6 +16,7 @@ public class RouteDialog extends Dialog<RoutingRule> {
     private ComboBox<Integer> portCombo;
     private TextField descField;
     private CheckBox stripCheckbox;
+    private Spinner<Integer> prioritySpinner;
 
     public RouteDialog(RouterConfig config, RoutingRule existingRule) {
         setTitle(existingRule == null ? "Add Route" : "Edit Route");
@@ -70,6 +71,21 @@ public class RouteDialog extends Dialog<RoutingRule> {
         VBox stripBox = new VBox(5);
         stripBox.getChildren().addAll(stripCheckbox, stripHintLabel);
 
+        // Priority field
+        Label priorityLabel = new Label("Priority:");
+        prioritySpinner = new Spinner<>(1, 1000, 100, 10);
+        prioritySpinner.setEditable(true);
+        prioritySpinner.setPrefWidth(100);
+        if (existingRule != null) {
+            prioritySpinner.getValueFactory().setValue(existingRule.getPriority());
+        }
+
+        Label priorityHintLabel = new Label("Lower number = higher priority (checked first)");
+        priorityHintLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #888;");
+
+        VBox priorityBox = new VBox(5);
+        priorityBox.getChildren().addAll(prioritySpinner, priorityHintLabel);
+
         // Description
         Label descLabel = new Label("Description:");
         descField = new TextField();
@@ -86,8 +102,10 @@ public class RouteDialog extends Dialog<RoutingRule> {
         grid.add(portCombo, 1, 2);
         grid.add(stripLabel, 0, 3);
         grid.add(stripBox, 1, 3);
-        grid.add(descLabel, 0, 4);
-        grid.add(descField, 1, 4);
+        grid.add(priorityLabel, 0, 4);
+        grid.add(priorityBox, 1, 4);
+        grid.add(descLabel, 0, 5);
+        grid.add(descField, 1, 5);
 
         getDialogPane().setContent(grid);
 
@@ -130,6 +148,7 @@ public class RouteDialog extends Dialog<RoutingRule> {
 
                     String desc = descField.getText().trim();
                     boolean stripPrefix = stripCheckbox.isSelected();
+                    int priority = prioritySpinner.getValue();
 
                     if (path.isEmpty() || host == null || host.isEmpty()) {
                         showAlert("Validation Error", "Path and host are required.");
@@ -147,7 +166,7 @@ public class RouteDialog extends Dialog<RoutingRule> {
                         return null;
                     }
 
-                    return new RoutingRule(path, host, port, desc, stripPrefix);
+                    return new RoutingRule(path, host, port, desc, stripPrefix, priority);
                 } catch (NumberFormatException e) {
                     showAlert("Error", "Port must be a valid number.");
                     return null;

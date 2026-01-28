@@ -1,13 +1,12 @@
 package com.tunneler;
 
 import com.tunneler.router.*;
-import com.tunneler.config.ConfigManager;
+import com.tunneler.connection.ConnectionManager;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Tunnel client with dual-mode support (Raw/Routing)
@@ -16,15 +15,55 @@ import java.util.List;
 public class TunnelClient {
 
     private final RouterConfig config;
+    private final ConnectionManager connectionManager;
     private List<RouteHandler> routeHandlers; // Isolated handlers - one per route
+    private volatile boolean running = false;
+    private Thread clientThread;
 
     public TunnelClient() {
         this.config = RouterConfig.getInstance();
+        this.connectionManager = ConnectionManager.getInstance();
         // Listen for route changes and re-sort
         config.setRouteChangeListener(this::initializeRouteHandlers);
     }
 
-    public void start() {
+    public synchronized void connect() {
+        if (running) {
+            System.out.println("Client already running");
+            return;
+        }
+
+        running = true;
+        clientThread = new Thread(this::start, "TunnelClient-Main");
+        clientThread.start();
+        System.out.println("Client started");
+    }
+
+    public synchronized void disconnect() {
+        if (!running) {
+            System.out.println("Client not running");
+            return;
+        }
+
+        System.out.println("Shutting down client...");
+        running = false;
+
+        // Use ConnectionManager to close ALL resources
+        connectionManager.closeAll();
+
+        // Interrupt client thread
+        if (clientThread != null) {
+            clientThread.interrupt();
+        }
+
+        System.out.println("Client shutdown complete");
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    private void start() {
         // Initialize route handlers for complete isolation
         initializeRouteHandlers();
 
@@ -32,24 +71,58 @@ public class TunnelClient {
         int signalPort = config.getSignalPort();
         int dataPort = config.getDataPort();
 
-        // Keep trying to connect to signal server
-        while (true) {
+        int reconnectAttempt = 0;
+
+        // Keep trying to connect to signal server ONLY while running
+        while (running) {
             try {
+                reconnectAttempt++;
                 runClient(signalHost, signalPort, dataPort);
+
+                // Connection ended normally, reset backoff
+                reconnectAttempt = 0;
+
             } catch (Exception e) {
-                System.err.println("Signal connection failed or dropped: " + e.getMessage());
-                if (config.autoReconnectProperty().get()) {
-                    System.err.println("Retrying in 3 seconds...");
+                if (!running) {
+                    // Shutdown requested - stop reconnecting
+                    System.out.println("Client disabled - stopping reconnection");
+                    break;
+                }
+
+                System.err.println("Signal connection failed: " + e.getMessage());
+
+                if (config.autoReconnectProperty().get() && running) {
+                    // Exponential backoff: 3s, 6s, 12s, max 60s
+                    int delaySec = Math.min(3 * (int) Math.pow(2, Math.min(reconnectAttempt - 1, 4)), 60);
+                    System.err.println("Retrying in " + delaySec + " seconds... (attempt " + reconnectAttempt + ")");
+
                     try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException ignored) {
+                        Thread.sleep(delaySec * 1000L);
+                    } catch (InterruptedException ie) {
+                        // Shutdown requested - stop reconnecting
+                        System.out.println("Client disabled during sleep - stopping reconnection");
+                        break;
+                    }
+
+                    // Double-check running flag after sleep
+                    if (!running) {
+                        System.out.println("Client disabled - stopping reconnection");
+                        break;
                     }
                 } else {
-                    System.err.println("Auto-reconnect disabled. Stopping.");
+                    // Auto-reconnect disabled or client stopped
+                    if (!running) {
+                        System.out.println("Client disabled - stopping reconnection");
+                    } else {
+                        System.err.println("Auto-reconnect disabled. Stopping.");
+                    }
                     break;
                 }
             }
         }
+
+        running = false;
+        System.out.println("Client stopped");
     }
 
     /**
@@ -104,20 +177,21 @@ public class TunnelClient {
 
     private void runClient(String signalHost, int signalPort, int dataPort) throws IOException {
         System.out.println("Connecting to signal server " + signalHost + ":" + signalPort + "...");
-        try (Socket signalSocket = new Socket(signalHost, signalPort)) {
+        try (Socket socket = new Socket(signalHost, signalPort)) {
+            connectionManager.setSignalSocket(socket); // Register with ConnectionManager
 
-            // 1. Register
+            // 1. Register (server protocol expects REGISTER, not IDENTIFY)
             String registerCmd = "REGISTER " + config.getFullDomain() + "\n";
-            signalSocket.getOutputStream().write(registerCmd.getBytes(StandardCharsets.UTF_8));
-            signalSocket.getOutputStream().flush();
+            socket.getOutputStream().write(registerCmd.getBytes(StandardCharsets.UTF_8));
+            socket.getOutputStream().flush();
             System.out.println("Registered as " + config.getFullDomain());
 
             // 2. Listen for commands
             BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(signalSocket.getInputStream(), StandardCharsets.UTF_8));
+                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
             String line;
-            while ((line = reader.readLine()) != null) {
+            while (running && (line = reader.readLine()) != null) {
                 if (line.isEmpty())
                     continue;
 
@@ -131,19 +205,29 @@ public class TunnelClient {
 
                     System.out.println("Received CONNECT request: " + requestId);
 
-                    // Spawn a new thread to handle this specific tunnel
-                    new Thread(() -> handleTunnel(requestId, signalHost, dataPort)).start();
+                    // Use VIRTUAL THREAD for instant startup (<1μs vs ~1ms for platform threads)
+                    Thread.startVirtualThread(() -> handleTunnel(requestId, signalHost, dataPort));
                 } else {
                     System.out.println("Unknown command: " + line);
                 }
             }
-        }
+
+            // Connection closed by server (normal exit from while loop)
+            System.out.println("Signal server closed connection");
+
+        } // Socket auto-closed here by try-with-resources
+
+        System.out.println("Signal socket cleanup complete. Ready to reconnect.");
     }
 
     private void handleTunnel(String requestId, String signalHost, int dataPort) {
         Socket dataSocket = null;
         try {
+            if (!running) {
+                return; // Shutdown in progress
+            }
             dataSocket = new Socket(signalHost, dataPort);
+            connectionManager.registerSocket(dataSocket); // Track for cleanup
 
             // Handshake: REGISTER <hostname> <requestId> (per server protocol)
             String handshake = "REGISTER " + config.getFullDomain() + " " + requestId + "\n";
@@ -159,11 +243,14 @@ public class TunnelClient {
         } catch (Exception e) {
             System.err.println("[" + requestId + "] Error: " + e.getMessage());
         } finally {
-            // ALWAYS close socket
-            if (dataSocket != null && !dataSocket.isClosed()) {
-                try {
-                    dataSocket.close();
-                } catch (Exception ignored) {
+            // ALWAYS unregister and close socket
+            if (dataSocket != null) {
+                connectionManager.unregisterSocket(dataSocket);
+                if (!dataSocket.isClosed()) {
+                    try {
+                        dataSocket.close();
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }

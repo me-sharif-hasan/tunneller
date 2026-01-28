@@ -1,7 +1,7 @@
 package com.tunneler;
 
-import com.tunneler.config.ConfigManager;
 import com.tunneler.router.RouterConfig;
+import com.tunneler.config.ConfigManager;
 import com.tunneler.ui.*;
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -18,7 +18,6 @@ public class App extends Application {
 
     private RouterConfig config;
     private TunnelClient tunnelClient;
-    private Thread clientThread;
     private boolean isConnected = false;
 
     @Override
@@ -167,9 +166,7 @@ public class App extends Application {
             return;
 
         tunnelClient = new TunnelClient();
-        clientThread = new Thread(tunnelClient::start, "TunnelClient");
-        clientThread.setDaemon(true);
-        clientThread.start();
+        tunnelClient.connect(); // Starts in background thread
         isConnected = true;
     }
 
@@ -177,8 +174,8 @@ public class App extends Application {
         if (!isConnected)
             return;
 
-        if (clientThread != null && clientThread.isAlive()) {
-            clientThread.interrupt();
+        if (tunnelClient != null) {
+            tunnelClient.disconnect();
         }
         isConnected = false;
     }

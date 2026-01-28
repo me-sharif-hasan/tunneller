@@ -1,5 +1,8 @@
 com\tunneler\config\ConfigManager$RouteData.class
+com\tunneler\router\RouterConfig$RouteChangeListener.class
 com\tunneler\App.class
+com\tunneler\connection\ConnectionManager.class
+com\tunneler\monitor\ConnectionStats$RouteStats.class
 com\tunneler\router\RouteHandler.class
 com\tunneler\ui\RawModePanel.class
 com\tunneler\router\RoutingRule.class
@@ -14,4 +17,5 @@ com\tunneler\ui\ConnectionMonitorPanel.class
 com\tunneler\config\ConfigManager$ConfigData.class
 com\tunneler\TunnelClient.class
 com\tunneler\ui\RouteDialog.class
+com\tunneler\monitor\ConnectionStats.class
 com\tunneler\ui\SettingsPanel.class

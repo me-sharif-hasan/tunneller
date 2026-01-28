@@ -50,6 +50,9 @@ public class RouteHandler {
         System.out.println("[" + requestId + "] RouteHandler [" + rule.getPathPattern() +
                 "] -> " + targetHost + ":" + targetPort + " (" + rule.getDescription() + ")");
 
+        // Track connection (non-blocking)
+        com.tunneler.monitor.ConnectionStats.getInstance().recordConnection(rule.getPathPattern());
+
         // Create ISOLATED connection for THIS route only
         try (Socket targetSocket = new Socket(targetHost, targetPort)) {
             OutputStream targetOutput = targetSocket.getOutputStream();
@@ -88,6 +91,9 @@ public class RouteHandler {
 
             upstream.join();
             downstream.join();
+        } finally {
+            // Mark connection complete
+            com.tunneler.monitor.ConnectionStats.getInstance().completeConnection(rule.getPathPattern());
         }
     }
 
