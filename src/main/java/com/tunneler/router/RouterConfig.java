@@ -61,8 +61,21 @@ public class RouterConfig {
         return instance;
     }
 
-    private void addDefaultRoutes() {
+    public void addDefaultRoutes() {
         addRoutingRule(new RoutingRule("/*", "localhost", 8080, "Default Fallback"));
+    }
+
+    /**
+     * Listener for route changes
+     */
+    public interface RouteChangeListener {
+        void onRoutesChanged();
+    }
+
+    private RouteChangeListener routeChangeListener;
+
+    public void setRouteChangeListener(RouteChangeListener listener) {
+        this.routeChangeListener = listener;
     }
 
     /**
@@ -80,6 +93,11 @@ public class RouterConfig {
         pathPatternHistory.add(rule.getPathPattern());
         targetHostHistory.add(rule.getTargetHost());
         targetPortHistory.add(rule.getTargetPort());
+
+        // Notify listener
+        if (routeChangeListener != null) {
+            routeChangeListener.onRoutesChanged();
+        }
     }
 
     /**
@@ -88,6 +106,11 @@ public class RouterConfig {
     public void removeRoutingRule(RoutingRule rule) {
         routingRules.remove(rule);
         exactMatchCache.remove(rule.getPathPattern());
+
+        // Notify listener
+        if (routeChangeListener != null) {
+            routeChangeListener.onRoutesChanged();
+        }
     }
 
     /**

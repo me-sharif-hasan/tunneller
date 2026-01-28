@@ -48,6 +48,7 @@ public class ConfigManager {
         int targetPort;
         String description;
         boolean stripPrefix; // For path prefix stripping
+        int priority; // Route priority
     }
 
     /**
@@ -76,6 +77,7 @@ public class ConfigManager {
                 routeData.targetPort = rule.getTargetPort();
                 routeData.description = rule.getDescription();
                 routeData.stripPrefix = rule.isStripPrefix();
+                routeData.priority = rule.getPriority();
                 data.routes.add(routeData);
             }
 
@@ -142,12 +144,14 @@ public class ConfigManager {
             if (data.routes != null) {
                 config.getRoutingRules().clear();
                 for (RouteData routeData : data.routes) {
+                    int priority = (routeData.priority > 0) ? routeData.priority : 100; // Default 100
                     RoutingRule rule = new RoutingRule(
                             routeData.pathPattern,
                             routeData.targetHost,
                             routeData.targetPort,
                             routeData.description,
-                            routeData.stripPrefix);
+                            routeData.stripPrefix,
+                            priority);
                     config.addRoutingRule(rule);
                 }
             }

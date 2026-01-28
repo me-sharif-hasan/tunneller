@@ -11,17 +11,24 @@ public class RoutingRule {
     private final int targetPort;
     private final String description;
     private final boolean stripPrefix; // If true, removes matched prefix before forwarding
+    private final int priority; // Lower number = higher priority (checked first)
 
     public RoutingRule(String pathPattern, String targetHost, int targetPort, String description) {
-        this(pathPattern, targetHost, targetPort, description, false);
+        this(pathPattern, targetHost, targetPort, description, false, 100);
     }
 
     public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix) {
+        this(pathPattern, targetHost, targetPort, description, stripPrefix, 100);
+    }
+
+    public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix,
+            int priority) {
         this.pathPattern = pathPattern;
         this.targetHost = targetHost;
         this.targetPort = targetPort;
         this.description = description;
         this.stripPrefix = stripPrefix;
+        this.priority = priority;
     }
 
     public String getPathPattern() {
@@ -42,6 +49,10 @@ public class RoutingRule {
 
     public boolean isStripPrefix() {
         return stripPrefix;
+    }
+
+    public int getPriority() {
+        return priority;
     }
 
     /**
@@ -104,6 +115,7 @@ public class RoutingRule {
     @Override
     public String toString() {
         return pathPattern + " -> " + targetHost + ":" + targetPort +
-                (stripPrefix ? " (strip prefix)" : "");
+                " (priority=" + priority +
+                (stripPrefix ? ", strip prefix)" : ")");
     }
 }

@@ -80,7 +80,6 @@ public class RouteHandler {
             }
 
             targetOutput.flush();
-            System.out.println("[" + requestId + "] Forwarded " + parseResult.totalBytesRead + " bytes. Piping...");
 
             // Bi-directional pipe (isolated to this connection)
             Thread upstream = createPipe(targetSocket.getInputStream(),
@@ -89,8 +88,6 @@ public class RouteHandler {
 
             upstream.join();
             downstream.join();
-
-            System.out.println("[" + requestId + "] Connection closed");
         }
     }
 

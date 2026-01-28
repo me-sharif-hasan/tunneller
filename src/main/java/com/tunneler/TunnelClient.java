@@ -20,6 +20,8 @@ public class TunnelClient {
 
     public TunnelClient() {
         this.config = RouterConfig.getInstance();
+        // Listen for route changes and re-sort
+        config.setRouteChangeListener(this::initializeRouteHandlers);
     }
 
     public void start() {
@@ -52,16 +54,52 @@ public class TunnelClient {
 
     /**
      * Initialize route handlers - one isolated handler per route
-     * This prevents cross-route state pollution
+     * SORTED BY SPECIFICITY for fast first-match lookup
+     * PUBLIC so it can be called when routes change
      */
-    private void initializeRouteHandlers() {
+    public void initializeRouteHandlers() {
         routeHandlers = new ArrayList<>();
         for (RoutingRule rule : config.getRoutingRules()) {
             RouteHandler handler = new RouteHandler(rule);
             routeHandlers.add(handler);
-            System.out.println("  [RouteHandler] Initialized: " + handler);
+        }
+
+        // PRE-SORT by priority (lower = higher priority), then by specificity
+        // This is Spring Cloud Gateway's approach - sort ONCE, not on every request
+        routeHandlers.sort((h1, h2) -> {
+            int priority1 = h1.getRule().getPriority();
+            int priority2 = h2.getRule().getPriority();
+
+            // First compare by priority (lower number = higher priority)
+            int priorityCompare = Integer.compare(priority1, priority2);
+            if (priorityCompare != 0) {
+                return priorityCompare;
+            }
+
+            // If same priority, use specificity
+            String p1 = h1.getRule().getPathPattern();
+            String p2 = h2.getRule().getPathPattern();
+            return Integer.compare(getRouteSpecificity(p2), getRouteSpecificity(p1)); // descending
+        });
+
+        System.out.println("  [RouteHandler] Routes sorted by specificity:");
+        for (RouteHandler handler : routeHandlers) {
+            System.out.println("    - " + handler);
         }
         System.out.println("  [RouteHandler] Total handlers: " + routeHandlers.size());
+    }
+
+    /**
+     * Calculate route specificity (used ONLY at initialization)
+     * Higher = more specific
+     */
+    private int getRouteSpecificity(String pattern) {
+        if (pattern.endsWith("/*")) {
+            // Longer prefix = more specific
+            return 1000 + pattern.length();
+        }
+        // Exact match = highest
+        return 10000;
     }
 
     private void runClient(String signalHost, int signalPort, int dataPort) throws IOException {
@@ -103,33 +141,31 @@ public class TunnelClient {
     }
 
     private void handleTunnel(String requestId, String signalHost, int dataPort) {
+        Socket dataSocket = null;
         try {
-            System.out.println("[" + requestId + "] ===== Opening data socket =====");
-            Socket dataSocket = new Socket(signalHost, dataPort);
-            System.out.println("[" + requestId + "] Data socket connected: " + dataSocket.isConnected());
-            System.out.println("[" + requestId + "] Data socket bound: " + dataSocket.isBound());
-            System.out.println("[" + requestId + "] Data socket closed: " + dataSocket.isClosed());
+            dataSocket = new Socket(signalHost, dataPort);
 
-            String identifyCmd = "IDENTIFY " + requestId + "\n";
-            System.out.println("[" + requestId + "] Sending IDENTIFY command: " + identifyCmd.trim());
-            dataSocket.getOutputStream().write(identifyCmd.getBytes(StandardCharsets.UTF_8));
+            // Handshake: REGISTER <hostname> <requestId> (per server protocol)
+            String handshake = "REGISTER " + config.getFullDomain() + " " + requestId + "\n";
+            dataSocket.getOutputStream().write(handshake.getBytes(StandardCharsets.UTF_8));
             dataSocket.getOutputStream().flush();
-            System.out.println("[" + requestId + "] IDENTIFY sent successfully");
 
-            // Decide handling mode based on config
-            OperationalMode mode = config.getMode();
-            System.out.println("[" + requestId + "] Mode: " + mode);
-
-            if (mode == OperationalMode.RAW_MODE) {
+            // Route based on mode
+            if (config.getMode() == OperationalMode.RAW_MODE) {
                 handleRawMode(requestId, dataSocket);
             } else {
                 handleRoutingMode(requestId, dataSocket);
             }
-
-            dataSocket.close();
         } catch (Exception e) {
             System.err.println("[" + requestId + "] Error: " + e.getMessage());
-            e.printStackTrace();
+        } finally {
+            // ALWAYS close socket
+            if (dataSocket != null && !dataSocket.isClosed()) {
+                try {
+                    dataSocket.close();
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
@@ -152,41 +188,31 @@ public class TunnelClient {
     }
 
     /**
-     * ROUTING MODE: Find matching handler and delegate completely
-     * Each handler is ISOLATED - prevents cross-route contamination
+     * ROUTING MODE: Fast first-match lookup
+     * Routes are PRE-SORTED by specificity at startup
      */
     private void handleRoutingMode(String requestId, Socket dataSocket) throws Exception {
         InputStream clientInput = dataSocket.getInputStream();
 
-        // Parse first line to extract method, path, version
+        // Parse HTTP request
         HttpRequestParser.ParseResult parseResult = HttpRequestParser.parseFirstLine(clientInput);
-
         if (parseResult == null) {
             System.err.println("[" + requestId + "] Invalid HTTP request");
             return;
         }
 
         String path = parseResult.path;
-        System.out.println("[" + requestId + "] ROUTING MODE: Path = " + path);
+        System.out.println("[" + requestId + "] " + parseResult.method + " " + path);
 
-        // Find matching handler
-        RouteHandler handler = null;
-        for (RouteHandler h : routeHandlers) {
-            if (h.matches(path)) {
-                handler = h;
-                break;
+        // FIRST MATCH WINS (routes already sorted by specificity)
+        for (RouteHandler handler : routeHandlers) {
+            if (handler.matches(path)) {
+                handler.handleRequest(requestId, dataSocket, clientInput, parseResult);
+                return;
             }
         }
 
-        if (handler == null) {
-            System.err.println("[" + requestId + "] No route found for path: " + path);
-            return;
-        }
-
-        // Delegate COMPLETELY to the handler
-        // Handler has its own isolated state and connections
-        // NO SHARED STATE between routes!
-        handler.handleRequest(requestId, dataSocket, clientInput, parseResult);
+        System.err.println("[" + requestId + "] No route found for: " + path);
     }
 
     private Thread pipe(InputStream input, OutputStream output, String name) {
