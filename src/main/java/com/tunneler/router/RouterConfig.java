@@ -49,6 +49,10 @@ public class RouterConfig {
     private final BooleanProperty loggingEnabled = new SimpleBooleanProperty(false);
     private final IntegerProperty bufferSize = new SimpleIntegerProperty(8192);
 
+    // Web admin server configuration
+    private final IntegerProperty adminPort = new SimpleIntegerProperty(8090);
+    private final BooleanProperty adminAutoPort = new SimpleBooleanProperty(true); // Auto-find free port
+
     private RouterConfig() {
         // Initialize with default routes
         addDefaultRoutes();
@@ -253,6 +257,14 @@ public class RouterConfig {
         return bufferSize.get();
     }
 
+    public int getAdminPort() {
+        return adminPort.get();
+    }
+
+    public boolean isAdminAutoPort() {
+        return adminAutoPort.get();
+    }
+
     // Setters
     public void setDomain(String value) {
         domain.set(value);
@@ -269,6 +281,18 @@ public class RouterConfig {
 
     public void setRawTargetPort(int value) {
         rawTargetPort.set(value);
+    }
+
+    public void setSignalHost(String value) {
+        signalHost.set(value);
+    }
+
+    public void setSignalPort(int value) {
+        signalPort.set(value);
+    }
+
+    public void setDataPort(int value) {
+        dataPort.set(value);
     }
 
     // Autocomplete getters

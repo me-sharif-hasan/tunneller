@@ -16,6 +16,8 @@ public class RouteDialog extends Dialog<RoutingRule> {
     private ComboBox<Integer> portCombo;
     private TextField descField;
     private CheckBox stripCheckbox;
+    private CheckBox forwardHostCheckbox;
+    private CheckBox sslCheckbox;
     private Spinner<Integer> prioritySpinner;
 
     public RouteDialog(RouterConfig config, RoutingRule existingRule) {
@@ -86,6 +88,42 @@ public class RouteDialog extends Dialog<RoutingRule> {
         VBox priorityBox = new VBox(5);
         priorityBox.getChildren().addAll(prioritySpinner, priorityHintLabel);
 
+        // Forward Host checkbox
+        Label forwardHostLabel = new Label("Forward Host:");
+        forwardHostCheckbox = new CheckBox("Add X-Forwarded-Host header for reverse proxy");
+        forwardHostCheckbox.setTooltip(new Tooltip("Preserves original Host header for backend routing"));
+        if (existingRule != null) {
+            forwardHostCheckbox.setSelected(existingRule.isForwardHost());
+        }
+
+        Label forwardHostHintLabel = new Label("Use when backend needs to know the original hostname");
+        forwardHostHintLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #888;");
+        forwardHostHintLabel.setWrapText(true);
+
+        VBox forwardHostBox = new VBox(5);
+        forwardHostBox.getChildren().addAll(forwardHostCheckbox, forwardHostHintLabel);
+
+        // SSL/TLS checkbox
+        Label sslLabel = new Label("SSL/TLS:");
+        sslCheckbox = new CheckBox("Use SSL/TLS (HTTPS)");
+        sslCheckbox.setTooltip(new Tooltip("Enable for HTTPS connections (typically port 443)"));
+        if (existingRule != null) {
+            sslCheckbox.setSelected(existingRule.isUseSSL());
+        }
+
+        Label sslHintLabel = new Label("Auto-enabled for port 443");
+        sslHintLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #888;");
+
+        VBox sslBox = new VBox(5);
+        sslBox.getChildren().addAll(sslCheckbox, sslHintLabel);
+
+        // Auto-enable SSL when port 443 is selected
+        portCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal == 443) {
+                sslCheckbox.setSelected(true);
+            }
+        });
+
         // Description
         Label descLabel = new Label("Description:");
         descField = new TextField();
@@ -102,10 +140,14 @@ public class RouteDialog extends Dialog<RoutingRule> {
         grid.add(portCombo, 1, 2);
         grid.add(stripLabel, 0, 3);
         grid.add(stripBox, 1, 3);
-        grid.add(priorityLabel, 0, 4);
-        grid.add(priorityBox, 1, 4);
-        grid.add(descLabel, 0, 5);
-        grid.add(descField, 1, 5);
+        grid.add(forwardHostLabel, 0, 4);
+        grid.add(forwardHostBox, 1, 4);
+        grid.add(sslLabel, 0, 5);
+        grid.add(sslBox, 1, 5);
+        grid.add(priorityLabel, 0, 6);
+        grid.add(priorityBox, 1, 6);
+        grid.add(descLabel, 0, 7);
+        grid.add(descField, 1, 7);
 
         getDialogPane().setContent(grid);
 
@@ -148,6 +190,8 @@ public class RouteDialog extends Dialog<RoutingRule> {
 
                     String desc = descField.getText().trim();
                     boolean stripPrefix = stripCheckbox.isSelected();
+                    boolean forwardHost = forwardHostCheckbox.isSelected();
+                    boolean useSSL = sslCheckbox.isSelected();
                     int priority = prioritySpinner.getValue();
 
                     if (path.isEmpty() || host == null || host.isEmpty()) {
@@ -166,7 +210,7 @@ public class RouteDialog extends Dialog<RoutingRule> {
                         return null;
                     }
 
-                    return new RoutingRule(path, host, port, desc, stripPrefix, priority);
+                    return new RoutingRule(path, host, port, desc, stripPrefix, priority, forwardHost, useSSL);
                 } catch (NumberFormatException e) {
                     showAlert("Error", "Port must be a valid number.");
                     return null;

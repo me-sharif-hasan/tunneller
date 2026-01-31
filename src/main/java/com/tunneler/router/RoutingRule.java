@@ -12,23 +12,37 @@ public class RoutingRule {
     private final String description;
     private final boolean stripPrefix; // If true, removes matched prefix before forwarding
     private final int priority; // Lower number = higher priority (checked first)
+    private final boolean forwardHost; // If true, adds X-Forwarded-Host header
+    private final boolean useSSL; // If true, uses SSL/TLS for HTTPS connections
 
     public RoutingRule(String pathPattern, String targetHost, int targetPort, String description) {
-        this(pathPattern, targetHost, targetPort, description, false, 100);
+        this(pathPattern, targetHost, targetPort, description, false, 100, false, false);
     }
 
     public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix) {
-        this(pathPattern, targetHost, targetPort, description, stripPrefix, 100);
+        this(pathPattern, targetHost, targetPort, description, stripPrefix, 100, false, false);
     }
 
     public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix,
             int priority) {
+        this(pathPattern, targetHost, targetPort, description, stripPrefix, priority, false, false);
+    }
+
+    public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix,
+            int priority, boolean forwardHost) {
+        this(pathPattern, targetHost, targetPort, description, stripPrefix, priority, forwardHost, false);
+    }
+
+    public RoutingRule(String pathPattern, String targetHost, int targetPort, String description, boolean stripPrefix,
+            int priority, boolean forwardHost, boolean useSSL) {
         this.pathPattern = pathPattern;
         this.targetHost = targetHost;
         this.targetPort = targetPort;
         this.description = description;
         this.stripPrefix = stripPrefix;
         this.priority = priority;
+        this.forwardHost = forwardHost;
+        this.useSSL = useSSL;
     }
 
     public String getPathPattern() {
@@ -53,6 +67,14 @@ public class RoutingRule {
 
     public int getPriority() {
         return priority;
+    }
+
+    public boolean isForwardHost() {
+        return forwardHost;
+    }
+
+    public boolean isUseSSL() {
+        return useSSL;
     }
 
     /**

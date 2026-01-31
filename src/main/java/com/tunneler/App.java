@@ -3,6 +3,7 @@ package com.tunneler;
 import com.tunneler.router.RouterConfig;
 import com.tunneler.config.ConfigManager;
 import com.tunneler.ui.*;
+import com.tunneler.web.WebAdminServer;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -23,6 +24,13 @@ public class App extends Application {
     @Override
     public void start(Stage primaryStage) {
         config = RouterConfig.getInstance();
+
+        // Initialize tunnel client (but don't connect yet)
+        tunnelClient = new TunnelClient();
+
+        // Start Web Admin Server and connect it to the client
+        WebAdminServer.getInstance().setTunnelClient(tunnelClient);
+        WebAdminServer.getInstance().start();
 
         // Create main layout
         BorderPane root = new BorderPane();
@@ -46,6 +54,14 @@ public class App extends Application {
 
         // Save config on close
         primaryStage.setOnCloseRequest(e -> {
+            // Clean up resources
+            if (tunnelClient != null) {
+                tunnelClient.disconnect();
+            }
+
+            // Stop Web Admin Server
+            WebAdminServer.getInstance().stop();
+
             if (config.isAutoSave()) {
                 ConfigManager.saveConfig();
             }
@@ -93,6 +109,11 @@ public class App extends Application {
         Region spacer1 = new Region();
         HBox.setHgrow(spacer1, Priority.ALWAYS);
 
+        // Web Admin button
+        Button webAdminButton = new Button("🌐 Web Admin");
+        webAdminButton.getStyleClass().addAll("btn", "btn-secondary");
+        webAdminButton.setOnAction(e -> openWebAdmin());
+
         // Connect/Disconnect button
         Button connectButton = new Button("Connect");
         connectButton.getStyleClass().addAll("btn", "btn-success");
@@ -133,7 +154,7 @@ public class App extends Application {
             showAlert("Success", "Configuration saved!");
         });
 
-        header.getChildren().addAll(title, domainBox, spacer1, connectButton, statusBox, saveButton);
+        header.getChildren().addAll(title, domainBox, spacer1, webAdminButton, connectButton, statusBox, saveButton);
         return header;
     }
 
@@ -161,15 +182,6 @@ public class App extends Application {
         return tabPane;
     }
 
-    private void startTunnelClient() {
-        if (isConnected)
-            return;
-
-        tunnelClient = new TunnelClient();
-        tunnelClient.connect(); // Starts in background thread
-        isConnected = true;
-    }
-
     private void disconnectTunnel() {
         if (!isConnected)
             return;
@@ -178,6 +190,19 @@ public class App extends Application {
             tunnelClient.disconnect();
         }
         isConnected = false;
+    }
+
+    private void startTunnelClient() {
+        // Client is already initialized in start(), just connect
+        if (tunnelClient != null && !isConnected) {
+            tunnelClient.connect();
+            isConnected = true;
+        }
+    }
+
+    private void openWebAdmin() {
+        String url = WebAdminServer.getInstance().getUrl();
+        getHostServices().showDocument(url);
     }
 
     private void showAlert(String title, String message) {

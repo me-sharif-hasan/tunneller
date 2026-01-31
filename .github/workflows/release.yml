@@ -1,0 +1,206 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version
+        id: version
+        run: |
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          BASE_VERSION=$(grep -oPm1 "(?<=<version>)[^<]+" pom.xml | head -1)
+          VERSION="${BASE_VERSION}.${BUILD_NUMBER}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "Generated version: ${VERSION}"
+
+  build-windows:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Update version in pom.xml
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          (Get-Content pom.xml) -replace '<version>1\.0\.0</version>', "<version>$version</version>" | Set-Content pom.xml
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Download JDK 25 (Windows)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://download.oracle.com/java/25/latest/jdk-25_windows-x64_bin.zip" -OutFile "jdk.zip"
+          Expand-Archive jdk.zip .
+          Rename-Item (Get-ChildItem -Directory jdk-*) jdk-25
+
+      - name: Download JavaFX 25 jmods (Windows)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://download2.gluonhq.com/openjfx/25/openjfx-25_windows-x64_bin-jmods.zip" -OutFile "javafx.zip"
+          Expand-Archive javafx.zip .
+
+      - name: Create runtime image
+        shell: pwsh
+        run: |
+          Remove-Item runtime -Recurse -Force -ErrorAction SilentlyContinue
+          $mp = ".\jdk-25\jmods;.\javafx-jmods-25"
+          .\jdk-25\bin\jlink `
+            --module-path $mp `
+            --add-modules java.base,java.desktop,java.logging,java.xml,java.naming,java.sql,java.management,java.instrument,java.prefs,java.net.http,jdk.crypto.ec,jdk.unsupported,javafx.controls,javafx.fxml,javafx.graphics `
+            --output runtime `
+            --compress=2 `
+            --no-header-files `
+            --no-man-pages `
+            --strip-debug
+
+      - name: Install WiX
+        shell: pwsh
+        run: choco install wixtoolset -y
+
+      - name: Package Windows EXE
+        shell: pwsh
+        run: |
+          mkdir package-input
+          Copy-Item "target/tunneler-router-${{ needs.prepare.outputs.version }}.jar" package-input/app.jar
+          .\jdk-25\bin\jpackage `
+            --type exe `
+            --input package-input `
+            --main-jar app.jar `
+            --main-class com.tunneler.App `
+            --name "Tunneler Router" `
+            --runtime-image runtime `
+            --app-version "${{ needs.prepare.outputs.version }}" `
+            --vendor "JS Enterprise" `
+            --win-menu `
+            --win-shortcut `
+            --dest installer-output
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: installer-output/*.exe
+
+  build-linux:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Update version in pom.xml
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          sed -i "s/<version>1\.0\.0<\/version>/<version>${VERSION}<\/version>/" pom.xml
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Download JDK 25 (Linux)
+        run: |
+          wget -q https://download.oracle.com/java/25/latest/jdk-25_linux-x64_bin.tar.gz
+          tar -xzf jdk-25_linux-x64_bin.tar.gz
+          mv jdk-* jdk-25
+
+      - name: Download JavaFX 25 jmods (Linux)
+        run: |
+          wget -q https://download2.gluonhq.com/openjfx/25/openjfx-25_linux-x64_bin-jmods.zip
+          unzip -q openjfx-25_linux-x64_bin-jmods.zip
+
+      - name: Create runtime image
+        run: |
+          rm -rf runtime
+          ./jdk-25/bin/jlink \
+            --module-path ./jdk-25/jmods:./javafx-jmods-25 \
+            --add-modules java.base,java.desktop,java.logging,java.xml,java.naming,java.sql,java.management,java.instrument,java.prefs,java.net.http,jdk.crypto.ec,jdk.unsupported,javafx.controls,javafx.fxml,javafx.graphics \
+            --output runtime \
+            --compress=2 \
+            --no-header-files \
+            --no-man-pages \
+            --strip-debug
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot binutils
+
+      - name: Package Linux DEB
+        run: |
+          mkdir package-input
+          cp target/tunneler-router-${{ needs.prepare.outputs.version }}.jar package-input/app.jar
+          ./jdk-25/bin/jpackage \
+            --type deb \
+            --input package-input \
+            --main-jar app.jar \
+            --main-class com.tunneler.App \
+            --name "Tunneler Router" \
+            --runtime-image runtime \
+            --app-version "${{ needs.prepare.outputs.version }}" \
+            --vendor "JS Enterprise" \
+            --linux-shortcut \
+            --dest installer-output
+
+      - name: Upload Linux Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: installer-output/*.deb
+
+  create-release:
+    needs: [prepare, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: artifacts/windows
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-installer
+          path: artifacts/linux
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: Release v${{ needs.prepare.outputs.version }}
+          files: |
+            artifacts/windows/*.exe
+            artifacts/linux/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

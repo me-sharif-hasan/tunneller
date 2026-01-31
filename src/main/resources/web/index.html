@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tunneler Web Admin</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌐 Tunneler Web Admin</h1>
+            <div class="status-badge" id="status-badge">
+                <div class="status-dot"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-section">
+                <label>Domain Configuration</label>
+                <div class="domain-input-group">
+                    <input type="text" id="domain-input" placeholder="yourdomain" />
+                    <span class="domain-suffix">.inthespace.online</span>
+                    <button class="btn btn-primary" onclick="updateDomain()">Update</button>
+                </div>
+                <div class="domain-display" id="domain-display">Loading...</div>
+            </div>
+
+            <div class="control-section">
+                <label>Client Control</label>
+                <div class="control-buttons">
+                    <button class="btn btn-success" id="start-btn" onclick="startClient()">▶ Start</button>
+                    <button class="btn btn-danger" id="stop-btn" onclick="stopClient()" disabled>⏹ Stop</button>
+                    <button class="btn btn-secondary" onclick="toggleSettings()">⚙️ Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel (Collapsible) -->
+        <div class="settings-panel" id="settings-panel" style="display: none;">
+            <h3>🔧 Server Configuration</h3>
+            <div class="settings-grid">
+                <div class="form-group">
+                    <label>Signal Host</label>
+                    <input type="text" id="signal-host" placeholder="localtunnel.me" />
+                </div>
+                <div class="form-group">
+                    <label>Signal Port</label>
+                    <input type="number" id="signal-port" placeholder="443" min="1" max="65535" />
+                </div>
+                <div class="form-group">
+                    <label>Data Port</label>
+                    <input type="number" id="data-port" placeholder="443" min="1" max="65535" />
+                </div>
+            </div>
+            <div class="settings-actions">
+                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+                <button class="btn btn-secondary" onclick="toggleSettings()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" style="margin-bottom: 1.5rem;">
+            <div class="stat-card">
+                <div class="stat-label">Active Routes</div>
+                <div class="stat-value" id="stat-routes">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Client Status</div>
+                <div class="stat-value" id="stat-status">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Domain</div>
+                <div class="stat-value" id="stat-domain" style="font-size: 1.2rem;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Mode</div>
+                <div class="stat-value" id="stat-mode" style="font-size: 1.5rem;">-</div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <h2>Routing Rules</h2>
+            <div class="toolbar-actions">
+                <button class="btn btn-primary" onclick="showAddModal()">
+                    <span>+</span> Add Route
+                </button>
+                <button class="btn btn-secondary" onclick="loadRoutes()">
+                    <span>🔄</span> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Routes Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Path Pattern</th>
+                        <th>Target Host</th>
+                        <th>Port</th>
+                        <th>Priority</th>
+                        <th>Features</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="routes-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem;">
+                            Loading routes...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="modal-title">Add Route</h2>
+            <form id="route-form" onsubmit="saveRoute(event)">
+                <div class="form-group">
+                    <label>Path Pattern</label>
+                    <input type="text" id="pathPattern" required placeholder="/api/*">
+                </div>
+                <div class="form-group">
+                    <label>Target Host</label>
+                    <input type="text" id="targetHost" required placeholder="localhost">
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="targetPort" required placeholder="8080" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <input type="number" id="priority" value="100" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="description" placeholder="Optional description">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useSSL">
+                        Use SSL/TLS (HTTPS)
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="stripPrefix">
+                        Strip Path Prefix
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="forwardHost">
+                        Forward Host Header
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+
+</html>

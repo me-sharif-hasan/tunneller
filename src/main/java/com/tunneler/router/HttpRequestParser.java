@@ -19,15 +19,18 @@ public class HttpRequestParser {
         public final int firstLineEndIndex; // Index where first line ends (for path rewriting)
         public final byte[] allBufferedBytes; // All bytes read (for forwarding)
         public final int totalBytesRead; // Total number of bytes
+        public final java.util.Map<String, String> headers; // Parsed headers (lowercase keys)
 
         public ParseResult(String method, String path, String version,
-                int firstLineEndIndex, byte[] allBufferedBytes, int totalBytesRead) {
+                int firstLineEndIndex, byte[] allBufferedBytes, int totalBytesRead,
+                java.util.Map<String, String> headers) {
             this.method = method;
             this.path = path;
             this.version = version;
             this.firstLineEndIndex = firstLineEndIndex;
             this.allBufferedBytes = allBufferedBytes;
             this.totalBytesRead = totalBytesRead;
+            this.headers = headers != null ? headers : new java.util.HashMap<>();
         }
     }
 
@@ -83,7 +86,21 @@ public class HttpRequestParser {
         String path = parts[1];
         String version = parts[2];
 
-        // Return the parsed result including all buffered bytes
-        return new ParseResult(method, path, version, crlfIndex + 2, buffer, totalRead);
+        // Parse headers (simple extraction for Host header)
+        java.util.Map<String, String> headers = new java.util.HashMap<>();
+        int headerStart = crlfIndex + 2; // Skip first CRLF
+        String headersText = new String(buffer, headerStart, totalRead - headerStart, StandardCharsets.UTF_8);
+        String[] headerLines = headersText.split("\r\n");
+        for (String headerLine : headerLines) {
+            int colonIndex = headerLine.indexOf(':');
+            if (colonIndex > 0) {
+                String headerName = headerLine.substring(0, colonIndex).trim().toLowerCase();
+                String headerValue = headerLine.substring(colonIndex + 1).trim();
+                headers.put(headerName, headerValue);
+            }
+        }
+
+        // Return the parsed result including all buffered bytes and headers
+        return new ParseResult(method, path, version, crlfIndex + 2, buffer, totalRead, headers);
     }
 }

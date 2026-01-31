@@ -90,6 +90,16 @@ public class RoutingRulesPanel extends VBox {
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
         descCol.setMinWidth(150);
 
+        // Sort table by priority (ascending - low numbers first)
+        table.setItems(config.getRoutingRules().sorted((r1, r2) -> {
+            int priorityCompare = Integer.compare(r1.getPriority(), r2.getPriority());
+            if (priorityCompare != 0) {
+                return priorityCompare;
+            }
+            // If same priority, sort by path pattern for consistency
+            return r1.getPathPattern().compareTo(r2.getPathPattern());
+        }));
+
         // Actions column with Edit and Delete buttons (fixed width, full button text)
         TableColumn<RoutingRule, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setMinWidth(160);
