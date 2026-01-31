@@ -15,7 +15,7 @@ import java.util.*;
  * Thread-safe with file locking
  */
 public class ConfigManager {
-    private static final String CONFIG_FILE = "tunneler-config.json";
+    private static final String CONFIG_FILE = "tunneller-config.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     /**
@@ -182,7 +182,7 @@ public class ConfigManager {
      */
     private static Path getConfigPath() {
         String userHome = System.getProperty("user.home");
-        Path configDir = Paths.get(userHome, ".tunneler");
+        Path configDir = Paths.get(userHome, ".tunneller");
 
         try {
             Files.createDirectories(configDir);

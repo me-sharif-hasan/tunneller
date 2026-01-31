@@ -48,7 +48,7 @@ public class App extends Application {
         Scene scene = new Scene(root, 1200, 700);
         scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
 
-        primaryStage.setTitle("Tunneler - Dynamic HTTP Router");
+        primaryStage.setTitle("Tunneller - Dynamic HTTP Router");
 
         // Load Application Icon
         try {
@@ -94,7 +94,7 @@ public class App extends Application {
         header.setAlignment(Pos.CENTER_LEFT);
 
         // Title
-        Label title = new Label("Tunneler");
+        Label title = new Label("Tunneller");
         title.getStyleClass().add("header-title");
 
         // Domain input section

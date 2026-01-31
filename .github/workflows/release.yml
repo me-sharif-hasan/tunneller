@@ -87,13 +87,13 @@ jobs:
         shell: pwsh
         run: |
           mkdir package-input
-          Copy-Item "target/tunneler-router-${{ needs.prepare.outputs.version }}.jar" package-input/app.jar
+          Copy-Item "target/tunneller-router-${{ needs.prepare.outputs.version }}.jar" package-input/app.jar
           .\jdk-25\bin\jpackage `
             --type exe `
             --input package-input `
             --main-jar app.jar `
-            --main-class com.tunneler.App `
-            --name "Tunneler Router" `
+            --main-class com.tunneller.App `
+            --name "Tunneller Router" `
             --runtime-image runtime `
             --app-version "${{ needs.prepare.outputs.version }}" `
             --vendor "JS Enterprise" `
@@ -160,13 +160,13 @@ jobs:
       - name: Package Linux DEB
         run: |
           mkdir package-input
-          cp target/tunneler-router-${{ needs.prepare.outputs.version }}.jar package-input/app.jar
+          cp target/tunneller-router-${{ needs.prepare.outputs.version }}.jar package-input/app.jar
           ./jdk-25/bin/jpackage \
             --type deb \
             --input package-input \
             --main-jar app.jar \
-            --main-class com.tunneler.App \
-            --name "Tunneler Router" \
+            --main-class com.tunneller.App \
+            --name "Tunneller Router" \
             --runtime-image runtime \
             --app-version "${{ needs.prepare.outputs.version }}" \
             --vendor "JS Enterprise" \

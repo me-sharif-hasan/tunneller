@@ -6,11 +6,11 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.tunneler</groupId>
-    <artifactId>tunneler-router</artifactId>
+    <groupId>com.tunneller</groupId>
+    <artifactId>tunneller-router</artifactId>
     <version>1.0.0</version>
 
-    <name>Tunneler Dynamic HTTP Router</name>
+    <name>Tunneller Dynamic HTTP Router</name>
     <description>Dynamic HTTP router with JavaFX UI for path-based routing</description>
 
     <properties>

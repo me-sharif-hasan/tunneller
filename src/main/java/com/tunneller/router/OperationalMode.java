@@ -1,7 +1,7 @@
 package com.tunneller.router;
 
 /**
- * Operational mode for the tunneler
+ * Operational mode for the tunneller
  */
 public enum OperationalMode {
     /**

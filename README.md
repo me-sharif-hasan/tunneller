@@ -1,4 +1,4 @@
-# Tunneler - Dynamic HTTP Router
+# Tunneller - Dynamic HTTP Router
 
 Dynamic HTTP router with JavaFX UI for path-based routing to different servers.
 
@@ -12,7 +12,7 @@ mvn javafx:run
 ### Build JAR
 ```bash
 mvn clean package
-java -jar target/tunneler-router-1.0.0-shaded.jar
+java -jar target/tunneller-router-1.0.0-shaded.jar
 ```
 
 ## Features
