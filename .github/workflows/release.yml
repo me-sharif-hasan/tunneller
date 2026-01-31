@@ -134,7 +134,8 @@ jobs:
         run: |
           wget -q https://download.oracle.com/java/25/latest/jdk-25_linux-x64_bin.tar.gz
           tar -xzf jdk-25_linux-x64_bin.tar.gz
-          mv jdk-* jdk-25
+          EXTRACTED_DIR=$(tar -tf jdk-25_linux-x64_bin.tar.gz | head -1 | cut -f1 -d"/")
+          mv "$EXTRACTED_DIR" jdk-25
 
       - name: Download JavaFX 25 jmods (Linux)
         run: |
