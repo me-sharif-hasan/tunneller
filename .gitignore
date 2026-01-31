@@ -31,3 +31,6 @@ bin/
 
 ./out
 ./target
+
+.target/
+.out/
