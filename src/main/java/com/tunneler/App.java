@@ -49,6 +49,24 @@ public class App extends Application {
         scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
 
         primaryStage.setTitle("Tunneler - Dynamic HTTP Router");
+
+        // Load Application Icon
+        try {
+            // User mentioned icon.png but fs shows icon.jpg. Trying icon.jpg first.
+            java.io.InputStream iconStream = getClass().getResourceAsStream("/icon.jpg");
+            if (iconStream != null) {
+                primaryStage.getIcons().add(new javafx.scene.image.Image(iconStream));
+            } else {
+                // Fallback check
+                iconStream = getClass().getResourceAsStream("/icon.png");
+                if (iconStream != null) {
+                    primaryStage.getIcons().add(new javafx.scene.image.Image(iconStream));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+        }
+
         primaryStage.setScene(scene);
         primaryStage.show();
 

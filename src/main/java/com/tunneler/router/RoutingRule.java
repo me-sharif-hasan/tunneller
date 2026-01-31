@@ -88,7 +88,8 @@ public class RoutingRule {
         // Wildcard matching: /api/* matches /api/anything
         if (pathPattern.endsWith("/*")) {
             String prefix = pathPattern.substring(0, pathPattern.length() - 2);
-            return path.startsWith(prefix);
+            // Strict prefix matching: match "/api" OR "/api/..." but NOT "/apiblah"
+            return path.equals(prefix) || path.startsWith(prefix + "/");
         }
 
         return false;

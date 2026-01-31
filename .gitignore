@@ -29,8 +29,4 @@ bin/
 ### Mac OS ###
 .DS_Store
 
-./out
-./target
-
-.target/
-.out/
+target/

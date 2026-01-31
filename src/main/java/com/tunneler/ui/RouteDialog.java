@@ -16,7 +16,6 @@ public class RouteDialog extends Dialog<RoutingRule> {
     private ComboBox<Integer> portCombo;
     private TextField descField;
     private CheckBox stripCheckbox;
-    private CheckBox forwardHostCheckbox;
     private CheckBox sslCheckbox;
     private Spinner<Integer> prioritySpinner;
 
@@ -90,7 +89,7 @@ public class RouteDialog extends Dialog<RoutingRule> {
 
         // Forward Host checkbox
         Label forwardHostLabel = new Label("Forward Host:");
-        forwardHostCheckbox = new CheckBox("Add X-Forwarded-Host header for reverse proxy");
+        CheckBox forwardHostCheckbox = new CheckBox("Add X-Forwarded-Host header for reverse proxy");
         forwardHostCheckbox.setTooltip(new Tooltip("Preserves original Host header for backend routing"));
         if (existingRule != null) {
             forwardHostCheckbox.setSelected(existingRule.isForwardHost());
@@ -117,9 +116,13 @@ public class RouteDialog extends Dialog<RoutingRule> {
         VBox sslBox = new VBox(5);
         sslBox.getChildren().addAll(sslCheckbox, sslHintLabel);
 
-        // Auto-enable SSL when port 443 is selected
-        portCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && newVal == 443) {
+        // Auto-enable SSL when port 443 is entered (typed or selected)
+        portCombo.getEditor().textProperty().addListener((obs, oldVal, newVal) -> {
+            boolean userInteraction = portCombo.isFocused() ||
+                    portCombo.getEditor().isFocused() ||
+                    portCombo.isShowing();
+
+            if (userInteraction && newVal != null && newVal.trim().equals("443")) {
                 sslCheckbox.setSelected(true);
             }
         });

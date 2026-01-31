@@ -47,6 +47,8 @@ public class RouterConfig {
     private final BooleanProperty autoReconnect = new SimpleBooleanProperty(true);
     private final BooleanProperty monitoringEnabled = new SimpleBooleanProperty(true);
     private final BooleanProperty loggingEnabled = new SimpleBooleanProperty(false);
+
+    private final BooleanProperty forceConnectionClose = new SimpleBooleanProperty(true);
     private final IntegerProperty bufferSize = new SimpleIntegerProperty(8192);
 
     // Web admin server configuration
@@ -216,6 +218,10 @@ public class RouterConfig {
         return loggingEnabled;
     }
 
+    public BooleanProperty forceConnectionCloseProperty() {
+        return forceConnectionClose;
+    }
+
     public IntegerProperty bufferSizeProperty() {
         return bufferSize;
     }
@@ -257,6 +263,10 @@ public class RouterConfig {
         return bufferSize.get();
     }
 
+    public boolean isForceConnectionClose() {
+        return forceConnectionClose.get();
+    }
+
     public int getAdminPort() {
         return adminPort.get();
     }
@@ -293,6 +303,10 @@ public class RouterConfig {
 
     public void setDataPort(int value) {
         dataPort.set(value);
+    }
+
+    public void setForceConnectionClose(boolean value) {
+        forceConnectionClose.set(value);
     }
 
     // Autocomplete getters

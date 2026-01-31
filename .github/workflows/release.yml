@@ -99,6 +99,7 @@ jobs:
             --vendor "JS Enterprise" `
             --win-menu `
             --win-shortcut `
+            --icon src/main/resources/icon.ico `
             --dest installer-output
 
       - name: Upload Windows Installer
@@ -169,6 +170,7 @@ jobs:
             --app-version "${{ needs.prepare.outputs.version }}" \
             --vendor "JS Enterprise" \
             --linux-shortcut \
+            --icon src/main/resources/icon.png \
             --dest installer-output
 
       - name: Upload Linux Installer

@@ -73,110 +73,19 @@ public class RouteHandler {
             OutputStream targetOutput = socket.getOutputStream();
 
             // Path rewriting (if enabled for this route)
+            String pathToSend = originalPath;
             if (rule.isStripPrefix()) {
                 String rewrittenPath = rule.rewritePath(originalPath);
-
                 if (!rewrittenPath.equals(originalPath)) {
                     System.out.println("[" + requestId + "] Path rewriting: " + originalPath + " -> " + rewrittenPath);
-
-                    // Reconstruct first line with new path
-                    String newFirstLine = parseResult.method + " " + rewrittenPath + " " +
-                            parseResult.version + "\r\n";
-                    targetOutput.write(newFirstLine.getBytes(StandardCharsets.UTF_8));
-
-                    // Host header handling if enabled
-                    if (rule.isForwardHost()) {
-                        String originalHost = parseResult.headers.get("host");
-                        if (originalHost != null) {
-                            // Rewrite Host header to target
-                            String newHost = "Host: " + targetHost + "\r\n";
-                            targetOutput.write(newHost.getBytes(StandardCharsets.UTF_8));
-                            // Add X-Forwarded-Host with original
-                            String forwardHeader = "X-Forwarded-Host: " + originalHost + "\r\n";
-                            targetOutput.write(forwardHeader.getBytes(StandardCharsets.UTF_8));
-                            System.out
-                                    .println("[" + requestId + "] Host rewrite: " + originalHost + " -> " + targetHost);
-                        }
-                    }
-
-                    // Forward remaining buffered data (headers + body), skipping original Host
-                    // header
-                    int remainingStart = parseResult.firstLineEndIndex;
-                    int remainingLength = parseResult.totalBytesRead - remainingStart;
-
-                    if (rule.isForwardHost()) {
-                        // Skip the original Host header when forwarding
-                        String remainingData = new String(parseResult.allBufferedBytes, remainingStart,
-                                remainingLength, StandardCharsets.UTF_8);
-                        String[] lines = remainingData.split("\r\n", -1);
-                        StringBuilder filtered = new StringBuilder();
-                        for (String line : lines) {
-                            if (!line.toLowerCase().startsWith("host:")) {
-                                filtered.append(line).append("\r\n");
-                            }
-                        }
-                        // Remove trailing CRLF and write
-                        String filteredStr = filtered.toString();
-                        if (filteredStr.endsWith("\r\n\r\n")) {
-                            filteredStr = filteredStr.substring(0, filteredStr.length() - 2);
-                        }
-                        targetOutput.write(filteredStr.getBytes(StandardCharsets.UTF_8));
-                    } else {
-                        // No host forwarding - forward all headers as-is
-                        targetOutput.write(parseResult.allBufferedBytes, remainingStart, remainingLength);
-                    }
-                } else {
-                    // No actual rewriting needed
-                    targetOutput.write(parseResult.allBufferedBytes);
-                }
-            } else {
-                // No rewriting - check if we need to add X-Forwarded-Host
-                if (rule.isForwardHost()) {
-                    String originalHost = parseResult.headers.get("host");
-                    if (originalHost != null) {
-                        // Write the first line
-                        String firstLine = parseResult.method + " " + parseResult.path + " " +
-                                parseResult.version + "\r\n";
-                        targetOutput.write(firstLine.getBytes(StandardCharsets.UTF_8));
-
-                        // Rewrite Host header to target
-                        String newHost = "Host: " + targetHost + "\r\n";
-                        targetOutput.write(newHost.getBytes(StandardCharsets.UTF_8));
-                        // Add X-Forwarded-Host with original
-                        String forwardHeader = "X-Forwarded-Host: " + originalHost + "\r\n";
-                        targetOutput.write(forwardHeader.getBytes(StandardCharsets.UTF_8));
-                        System.out.println("[" + requestId + "] Host rewrite: " + originalHost + " -> " + targetHost);
-
-                        // Forward remaining buffered data (headers + body), skipping original Host
-                        // header
-                        int remainingStart = parseResult.firstLineEndIndex;
-                        int remainingLength = parseResult.totalBytesRead - remainingStart;
-
-                        // Skip the original Host header when forwarding
-                        String remainingData = new String(parseResult.allBufferedBytes, remainingStart,
-                                remainingLength, StandardCharsets.UTF_8);
-                        String[] lines = remainingData.split("\r\n", -1);
-                        StringBuilder filtered = new StringBuilder();
-                        for (String line : lines) {
-                            if (!line.toLowerCase().startsWith("host:")) {
-                                filtered.append(line).append("\r\n");
-                            }
-                        }
-                        // Remove trailing CRLF and write
-                        String filteredStr = filtered.toString();
-                        if (filteredStr.endsWith("\r\n\r\n")) {
-                            filteredStr = filteredStr.substring(0, filteredStr.length() - 2);
-                        }
-                        targetOutput.write(filteredStr.getBytes(StandardCharsets.UTF_8));
-                    } else {
-                        // No Host header found, forward as-is
-                        targetOutput.write(parseResult.allBufferedBytes);
-                    }
-                } else {
-                    // No forwardHost - forward as-is
-                    targetOutput.write(parseResult.allBufferedBytes);
+                    pathToSend = rewrittenPath;
                 }
             }
+
+            // Consolidate request forwarding logic
+            forwardRequest(targetOutput, parseResult, pathToSend, rule);
+
+            targetOutput.flush();
 
             targetOutput.flush();
 
@@ -202,6 +111,7 @@ public class RouteHandler {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
                 while ((bytesRead = input.read(buffer)) != -1) {
+                    System.out.println(new String(buffer, 0, bytesRead));
                     output.write(buffer, 0, bytesRead);
                     output.flush();
                 }
@@ -212,6 +122,87 @@ public class RouteHandler {
         thread.setDaemon(true);
         thread.start();
         return thread;
+    }
+
+    /**
+     * Helper to robustly forward request with modified headers
+     * Enforces Connection: close to prevent socket leaks/hangs
+     */
+    private void forwardRequest(OutputStream targetOutput, HttpRequestParser.ParseResult parseResult,
+            String pathToSend, RoutingRule rule) throws IOException {
+
+        // 1. Write Request Line
+        String firstLine = parseResult.method + " " + pathToSend + " " + parseResult.version + "\r\n";
+        targetOutput.write(firstLine.getBytes(StandardCharsets.UTF_8));
+
+        // 2. Identify Header/Body Splitting
+        int headerEnd = findHeaderEnd(parseResult.allBufferedBytes, parseResult.totalBytesRead);
+        int bodyStart = (headerEnd != -1) ? headerEnd + 4 : parseResult.firstLineEndIndex; // Fallback if crazy
+
+        // 3. Extract and Filter Headers
+        int headersStart = parseResult.firstLineEndIndex;
+        int headersLength = (headerEnd != -1) ? (headerEnd - headersStart)
+                : (parseResult.totalBytesRead - headersStart);
+
+        if (headersLength > 0) {
+            String headersStr = new String(parseResult.allBufferedBytes, headersStart, headersLength,
+                    StandardCharsets.UTF_8);
+            String[] lines = headersStr.split("\r\n");
+
+            boolean forceClose = RouterConfig.getInstance().isForceConnectionClose();
+
+            for (String line : lines) {
+                if (line.isEmpty())
+                    continue;
+                String lower = line.toLowerCase();
+
+                // SKIPPING LOGIC:
+                // 1. Skip Host if rewriting (we verify rule.isForwardHost later)
+                // 2. Skip Connection/Keep-Alive if forceClose is enabled
+                if ((rule.isForwardHost() && lower.startsWith("host:")) ||
+                        (forceClose && (lower.startsWith("connection:") ||
+                                lower.startsWith("keep-alive:") ||
+                                lower.startsWith("proxy-connection:")))) {
+                    continue;
+                }
+
+                targetOutput.write((line + "\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        // 4. Inject Headers
+
+        // Host injection
+        if (rule.isForwardHost()) {
+            String originalHost = parseResult.headers.get("host");
+            targetOutput.write(("Host: " + rule.getTargetHost() + "\r\n").getBytes(StandardCharsets.UTF_8));
+            if (originalHost != null) {
+                targetOutput.write(("X-Forwarded-Host: " + originalHost + "\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        // FORCE CONNECTION CLOSE (If enabled)
+        if (RouterConfig.getInstance().isForceConnectionClose()) {
+            targetOutput.write("Connection: close\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+
+        // End of Headers
+        targetOutput.write("\r\n".getBytes(StandardCharsets.UTF_8));
+
+        // 5. Write Body (Binary Safe)
+        if (bodyStart < parseResult.totalBytesRead) {
+            int bodyLen = parseResult.totalBytesRead - bodyStart;
+            targetOutput.write(parseResult.allBufferedBytes, bodyStart, bodyLen);
+        }
+    }
+
+    private int findHeaderEnd(byte[] buffer, int length) {
+        for (int i = 0; i < length - 3; i++) {
+            if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
+                return i;
+            }
+        }
+        return -1;
     }
 
     @Override

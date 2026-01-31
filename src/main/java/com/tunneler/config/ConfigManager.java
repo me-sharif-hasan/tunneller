@@ -49,6 +49,8 @@ public class ConfigManager {
         String description;
         boolean stripPrefix; // For path prefix stripping
         int priority; // Route priority
+        boolean forwardHost;
+        boolean useSSL;
     }
 
     /**
@@ -78,6 +80,8 @@ public class ConfigManager {
                 routeData.description = rule.getDescription();
                 routeData.stripPrefix = rule.isStripPrefix();
                 routeData.priority = rule.getPriority();
+                routeData.forwardHost = rule.isForwardHost();
+                routeData.useSSL = rule.isUseSSL();
                 data.routes.add(routeData);
             }
 
@@ -151,7 +155,9 @@ public class ConfigManager {
                             routeData.targetPort,
                             routeData.description,
                             routeData.stripPrefix,
-                            priority);
+                            priority,
+                            routeData.forwardHost,
+                            routeData.useSSL);
                     config.addRoutingRule(rule);
                 }
             }

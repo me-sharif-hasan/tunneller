@@ -16,7 +16,7 @@ public class TunnelClient {
 
     private final RouterConfig config;
     private final ConnectionManager connectionManager;
-    private List<RouteHandler> routeHandlers; // Isolated handlers - one per route
+    private volatile List<RouteHandler> routeHandlers; // Isolated handlers - one per route
     private volatile boolean running = false;
     private Thread clientThread;
 
@@ -131,15 +131,17 @@ public class TunnelClient {
      * PUBLIC so it can be called when routes change
      */
     public void initializeRouteHandlers() {
-        routeHandlers = new ArrayList<>();
+        // Build list LOCALLY first to avoid concurrency issues during iteration by
+        // other threads
+        List<RouteHandler> newHandlers = new ArrayList<>();
         for (RoutingRule rule : config.getRoutingRules()) {
             RouteHandler handler = new RouteHandler(rule);
-            routeHandlers.add(handler);
+            newHandlers.add(handler);
         }
 
         // PRE-SORT by priority (lower = higher priority), then by specificity
         // This is Spring Cloud Gateway's approach - sort ONCE, not on every request
-        routeHandlers.sort((h1, h2) -> {
+        newHandlers.sort((h1, h2) -> {
             int priority1 = h1.getRule().getPriority();
             int priority2 = h2.getRule().getPriority();
 
@@ -156,10 +158,13 @@ public class TunnelClient {
         });
 
         System.out.println("  [RouteHandler] Routes sorted by specificity:");
-        for (RouteHandler handler : routeHandlers) {
+        for (RouteHandler handler : newHandlers) {
             System.out.println("    - " + handler);
         }
-        System.out.println("  [RouteHandler] Total handlers: " + routeHandlers.size());
+        System.out.println("  [RouteHandler] Total handlers: " + newHandlers.size());
+
+        // Atomic assignment to volatile field
+        this.routeHandlers = newHandlers;
     }
 
     /**

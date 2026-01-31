@@ -107,6 +107,12 @@ public class SettingsPanel extends VBox {
         CheckBox loggingCheck = new CheckBox("Enable detailed logging");
         loggingCheck.selectedProperty().bindBidirectional(config.loggingEnabledProperty());
 
+        CheckBox forceCloseCheck = new CheckBox("Force 'Connection: close' (Prevents socket hangs)");
+        forceCloseCheck.selectedProperty().bindBidirectional(config.forceConnectionCloseProperty());
+        Tooltip forceCloseTip = new Tooltip(
+                "Forces the backend to close the connection after each response.\nDisable this only if you need Keep-Alive support and know the risks.");
+        forceCloseCheck.setTooltip(forceCloseTip);
+
         HBox bufferBox = new HBox(10);
         Label bufferLabel = new Label("Buffer Size (bytes):");
         TextField bufferField = new TextField();
@@ -116,7 +122,7 @@ public class SettingsPanel extends VBox {
         bufferField.getStyleClass().add("form-input");
         bufferBox.getChildren().addAll(bufferLabel, bufferField);
 
-        section.getChildren().addAll(title, monitoringCheck, loggingCheck, bufferBox);
+        section.getChildren().addAll(title, monitoringCheck, loggingCheck, forceCloseCheck, bufferBox);
         return section;
     }
 

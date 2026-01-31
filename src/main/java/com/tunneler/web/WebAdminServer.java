@@ -48,7 +48,7 @@ public class WebAdminServer {
         app = Javalin.create(javalinConfig -> {
             javalinConfig.staticFiles.add(staticFiles -> {
                 staticFiles.hostedPath = "/";
-                staticFiles.directory = "/web";
+                staticFiles.directory = "web";
             });
         }).start(port);
 
