@@ -1,7 +1,7 @@
-package com.tunneler;
+package com.tunneller;
 
-import com.tunneler.router.*;
-import com.tunneler.connection.ConnectionManager;
+import com.tunneller.router.*;
+import com.tunneller.connection.ConnectionManager;
 
 import java.io.*;
 import java.net.Socket;

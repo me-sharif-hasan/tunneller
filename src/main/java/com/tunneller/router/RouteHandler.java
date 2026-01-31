@@ -1,4 +1,4 @@
-package com.tunneler.router;
+package com.tunneller.router;
 
 import java.io.*;
 import java.net.Socket;
@@ -55,7 +55,7 @@ public class RouteHandler {
                 "] -> " + targetHost + ":" + targetPort + " (" + rule.getDescription() + ")");
 
         // Track connection (non-blocking)
-        com.tunneler.monitor.ConnectionStats.getInstance().recordConnection(rule.getPathPattern());
+        com.tunneller.monitor.ConnectionStats.getInstance().recordConnection(rule.getPathPattern());
 
         // Create connection (SSL or plain)
         Socket targetSocket;
@@ -98,7 +98,7 @@ public class RouteHandler {
             downstream.join();
         } finally {
             // Mark connection complete
-            com.tunneler.monitor.ConnectionStats.getInstance().completeConnection(rule.getPathPattern());
+            com.tunneller.monitor.ConnectionStats.getInstance().completeConnection(rule.getPathPattern());
         }
     }
 

@@ -1,8 +1,8 @@
-package com.tunneler.web;
+package com.tunneller.web;
 
-import com.tunneler.TunnelClient;
-import com.tunneler.router.RouterConfig;
-import com.tunneler.router.RoutingRule;
+import com.tunneller.TunnelClient;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.router.RoutingRule;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 

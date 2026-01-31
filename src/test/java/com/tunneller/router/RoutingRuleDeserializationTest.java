@@ -1,4 +1,4 @@
-package com.tunneler.router;
+package com.tunneller.router;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;

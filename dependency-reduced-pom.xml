@@ -20,7 +20,7 @@
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
         <configuration>
-          <mainClass>com.tunneler.App</mainClass>
+          <mainClass>com.tunneller.App</mainClass>
         </configuration>
       </plugin>
       <plugin>
@@ -35,7 +35,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>com.tunneler.App</mainClass>
+                  <mainClass>com.tunneller.App</mainClass>
                 </transformer>
               </transformers>
             </configuration>

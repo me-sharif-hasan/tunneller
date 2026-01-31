@@ -1,7 +1,7 @@
-package com.tunneler.integration;
+package com.tunneller.integration;
 
-import com.tunneler.router.RouterConfig;
-import com.tunneler.router.RoutingRule;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.router.RoutingRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

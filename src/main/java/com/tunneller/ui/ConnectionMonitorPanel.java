@@ -1,7 +1,6 @@
-package com.tunneler.ui;
+package com.tunneller.ui;
 
-import com.tunneler.monitor.ConnectionStats;
-import javafx.animation.AnimationTimer;
+import com.tunneller.monitor.ConnectionStats;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.chart.LineChart;

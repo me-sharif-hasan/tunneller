@@ -1,4 +1,4 @@
-package com.tunneler.integration;
+package com.tunneller.integration;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

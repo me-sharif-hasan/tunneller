@@ -1,10 +1,10 @@
-package com.tunneler.config;
+package com.tunneller.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.tunneler.router.OperationalMode;
-import com.tunneler.router.RouterConfig;
-import com.tunneler.router.RoutingRule;
+import com.tunneller.router.OperationalMode;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.router.RoutingRule;
 
 import java.io.*;
 import java.nio.file.*;

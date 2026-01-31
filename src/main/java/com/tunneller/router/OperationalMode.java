@@ -1,4 +1,4 @@
-package com.tunneler.router;
+package com.tunneller.router;
 
 /**
  * Operational mode for the tunneler

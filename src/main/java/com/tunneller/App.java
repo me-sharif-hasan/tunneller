@@ -1,9 +1,9 @@
-package com.tunneler;
+package com.tunneller;
 
-import com.tunneler.router.RouterConfig;
-import com.tunneler.config.ConfigManager;
-import com.tunneler.ui.*;
-import com.tunneler.web.WebAdminServer;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.config.ConfigManager;
+import com.tunneller.ui.*;
+import com.tunneller.web.WebAdminServer;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -52,8 +52,8 @@ public class App extends Application {
 
         // Load Application Icon
         try {
-            // User mentioned icon.png but fs shows icon.jpg. Trying icon.jpg first.
-            java.io.InputStream iconStream = getClass().getResourceAsStream("/icon.jpg");
+            // User mentioned icon.png but fs shows icon.png. Trying icon.png first.
+            java.io.InputStream iconStream = getClass().getResourceAsStream("/icon.png");
             if (iconStream != null) {
                 primaryStage.getIcons().add(new javafx.scene.image.Image(iconStream));
             } else {

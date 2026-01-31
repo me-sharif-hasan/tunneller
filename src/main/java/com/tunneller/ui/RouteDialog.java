@@ -1,7 +1,7 @@
-package com.tunneler.ui;
+package com.tunneller.ui;
 
-import com.tunneler.router.RouterConfig;
-import com.tunneler.router.RoutingRule;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.router.RoutingRule;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;

@@ -1,8 +1,8 @@
-package com.tunneler.integration;
+package com.tunneller.integration;
 
-import com.tunneler.TunnelClient;
-import com.tunneler.router.RouterConfig;
-import com.tunneler.router.RoutingRule;
+import com.tunneller.TunnelClient;
+import com.tunneller.router.RouterConfig;
+import com.tunneller.router.RoutingRule;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -26,13 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for Tunneler using Testcontainers
+ * Integration tests for Tunneller using Testcontainers
  * Tests the complete tunnel flow with local tunnel-server and backend services
  */
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class TunnelerIntegrationTest {
+public class TunnellerIntegrationTest {
 
     private static final Network network = Network.newNetwork();
 
@@ -134,7 +134,7 @@ public class TunnelerIntegrationTest {
         System.out.println("Backend2 (Web) - Port: " + backend2Port);
         System.out.println("Backend3 (Admin) - Port: " + backend3Port);
 
-        // Configure Tunneler
+        // Configure Tunneller
         config = RouterConfig.getInstance();
         config.setSignalHost("localhost");
         config.setSignalPort(signalPort);

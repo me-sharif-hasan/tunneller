@@ -1,4 +1,4 @@
-package com.tunneler.connection;
+package com.tunneller.connection;
 
 import java.io.Closeable;
 import java.net.Socket;
