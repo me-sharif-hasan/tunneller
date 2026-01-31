@@ -99,7 +99,6 @@ jobs:
             --vendor "JS Enterprise" `
             --win-menu `
             --win-shortcut `
-            --win-console `
             --icon src/main/resources/icon.ico `
             --dest installer-output
 
