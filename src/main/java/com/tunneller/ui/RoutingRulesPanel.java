@@ -102,8 +102,8 @@ public class RoutingRulesPanel extends VBox {
 
         // Actions column with Edit and Delete buttons (fixed width, full button text)
         TableColumn<RoutingRule, Void> actionsCol = new TableColumn<>("Actions");
-        actionsCol.setMinWidth(160);
-        actionsCol.setMaxWidth(160);
+        actionsCol.setMinWidth(170);
+        actionsCol.setPrefWidth(170);
         actionsCol.setResizable(false);
         actionsCol.setCellFactory(param -> new TableCell<>() {
             private final HBox buttonBox = new HBox(8);

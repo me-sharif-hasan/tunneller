@@ -3,6 +3,7 @@ const net = require('net');
 const SIGNAL_PORT = 6060;   // for commands
 const DATA_PORT = 7070;     // for raw payload
 const PROXY_PORT = 6061;    // receives user connections (Apache)
+const HEARTBEAT_INTERVAL = 30000;
 
 let socketIdSeq = 0;
 let reqIdSeq = 0;
@@ -25,40 +26,64 @@ function log(level, msg, meta = {}) {
 const signalServer = net.createServer(socket => {
     const sid = ++socketIdSeq;
     socket.__id = sid;
+    socket.setKeepAlive(true, 30000);
 
     log('INFO', 'signal_socket_connected', { sid, remote: socket.remoteAddress });
 
     let hostname = null;
+    let heartbeatTimer = null;
 
-    socket.once('data', chunk => {
+    socket.on('data', chunk => {
         const text = chunk.toString('utf8').trim();
-        // Expect: REGISTER <hostname>
-        if (text.startsWith('REGISTER ')) {
-            hostname = text.split(' ')[1].trim();
-            // Close old connection if exists
+
+        if (!hostname) {
+            if (!text.startsWith('REGISTER ')) {
+                log('WARN', 'first_data_not_register', { sid, data: text });
+                socket.destroy();
+                return;
+            }
+
+            hostname = text.split(' ')[1]?.trim();
+            if (!hostname) {
+                socket.destroy();
+                return;
+            }
+
             const existing = clients.get(hostname);
-            if (existing && existing.signalSocket) {
+            if (existing?.signalSocket) {
                 log('WARN', 'overwriting_existing_client', { hostname });
                 existing.signalSocket.destroy();
             }
 
             clients.set(hostname, { signalSocket: socket });
-            log('INFO', 'client_registered', { sid, hostname });
 
-            socket.on('close', () => {
-                log('INFO', 'signal_socket_disconnected', { sid, hostname });
-                const c = clients.get(hostname);
-                // Only unset if it's still us
-                if (c && c.signalSocket === socket) {
-                    clients.delete(hostname);
+            heartbeatTimer = setInterval(() => {
+                if (!socket.destroyed) {
+                    socket.write('PING\n');
                 }
-            });
+            }, HEARTBEAT_INTERVAL);
 
-            socket.on('error', err => log('ERROR', 'signal_socket_error', { sid, hostname, error: err.message }));
-        } else {
-            log('WARN', 'first_data_not_register', { sid, data: text });
-            socket.destroy();
+            log('INFO', 'client_registered', { sid, hostname });
+            return;
         }
+
+        if (text === 'PONG') {
+            log('DEBUG', 'heartbeat_pong', { hostname });
+        }
+    });
+
+    socket.on('close', () => {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        log('INFO', 'signal_socket_disconnected', { sid, hostname });
+
+        const c = clients.get(hostname);
+        if (c && c.signalSocket === socket) {
+            clients.delete(hostname);
+        }
+    });
+
+    socket.on('error', err => {
+        log('ERROR', 'signal_socket_error', { sid, hostname, error: err.message });
     });
 });
 

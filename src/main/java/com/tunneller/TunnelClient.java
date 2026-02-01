@@ -183,6 +183,7 @@ public class TunnelClient {
     private void runClient(String signalHost, int signalPort, int dataPort) throws IOException {
         System.out.println("Connecting to signal server " + signalHost + ":" + signalPort + "...");
         try (Socket socket = new Socket(signalHost, signalPort)) {
+            socket.setKeepAlive(true); // Detect broken connections (half-open) to trigger reconnect
             connectionManager.setSignalSocket(socket); // Register with ConnectionManager
 
             // 1. Register (server protocol expects REGISTER, not IDENTIFY)
@@ -199,6 +200,14 @@ public class TunnelClient {
             while (running && (line = reader.readLine()) != null) {
                 if (line.isEmpty())
                     continue;
+
+                if (line.equals("PING")) {
+                    socket.getOutputStream()
+                            .write("PONG\n".getBytes(StandardCharsets.UTF_8));
+                    socket.getOutputStream().flush();
+                    System.out.println("Heartbeat: PING <-> PONG");
+                    continue;
+                }
 
                 if (line.startsWith("CONNECT ")) {
                     String[] parts = line.split(" ");
