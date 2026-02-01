@@ -27,6 +27,12 @@ public class TunnelClient {
         config.setRouteChangeListener(this::initializeRouteHandlers);
     }
 
+    private Runnable onHeartbeat;
+
+    public void setOnHeartbeat(Runnable onHeartbeat) {
+        this.onHeartbeat = onHeartbeat;
+    }
+
     public synchronized void connect() {
         if (running) {
             System.out.println("Client already running");
@@ -206,6 +212,15 @@ public class TunnelClient {
                             .write("PONG\n".getBytes(StandardCharsets.UTF_8));
                     socket.getOutputStream().flush();
                     System.out.println("Heartbeat: PING <-> PONG");
+
+                    // Notify listener if set
+                    if (onHeartbeat != null) {
+                        try {
+                            onHeartbeat.run();
+                        } catch (Exception e) {
+                            System.err.println("Error in heartbeat listener: " + e.getMessage());
+                        }
+                    }
                     continue;
                 }
 

@@ -12,6 +12,12 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
+
 /**
  * Main JavaFX application entry point
  */
@@ -87,6 +93,10 @@ public class App extends Application {
         });
     }
 
+    private Timeline blinkAnimation;
+    private PauseTransition heartbeatTimeout;
+    private Label statusDot;
+
     private HBox createHeader() {
         HBox header = new HBox(15);
         header.setPadding(new Insets(12, 15, 12, 15));
@@ -155,11 +165,38 @@ public class App extends Application {
         statusBox.setAlignment(Pos.CENTER_LEFT);
         statusBox.getStyleClass().add("status-indicator");
 
-        Label statusDot = new Label("●");
+        statusDot = new Label("●");
         statusDot.getStyleClass().add("status-dot");
+        // Initial state: Red (disconnected/idle)
+        statusDot.setStyle("-fx-text-fill: #dc3545;");
 
         Label statusText = new Label(config.getSignalHost());
         statusText.getStyleClass().add("status-text");
+
+        // Initialize Animation (but don't start yet)
+        blinkAnimation = new Timeline(
+                new KeyFrame(Duration.seconds(0.5), e -> statusDot.setStyle("-fx-text-fill: #28a745;")), // Green
+                new KeyFrame(Duration.seconds(1.0), e -> statusDot.setStyle("-fx-text-fill: #dc3545;")) // Red
+        );
+        blinkAnimation.setCycleCount(Animation.INDEFINITE);
+
+        heartbeatTimeout = new PauseTransition(Duration.seconds(30));
+        heartbeatTimeout.setOnFinished(e -> {
+            blinkAnimation.stop();
+            statusDot.setStyle("-fx-text-fill: #dc3545;"); // Ensure Red
+        });
+
+        // On heartbeat: ensure animation is running and reset timeout
+        tunnelClient.setOnHeartbeat(() -> {
+            javafx.application.Platform.runLater(() -> {
+                if (isConnected) {
+                    if (blinkAnimation.getStatus() != Animation.Status.RUNNING) {
+                        blinkAnimation.play();
+                    }
+                    heartbeatTimeout.playFromStart(); // Reset timer
+                }
+            });
+        });
 
         statusBox.getChildren().addAll(statusDot, statusText);
 
@@ -207,6 +244,15 @@ public class App extends Application {
         if (tunnelClient != null) {
             tunnelClient.disconnect();
         }
+
+        // Stop animations
+        if (blinkAnimation != null)
+            blinkAnimation.stop();
+        if (heartbeatTimeout != null)
+            heartbeatTimeout.stop();
+        if (statusDot != null)
+            statusDot.setStyle("-fx-text-fill: #dc3545;"); // Red
+
         isConnected = false;
     }
 
@@ -215,6 +261,12 @@ public class App extends Application {
         if (tunnelClient != null && !isConnected) {
             tunnelClient.connect();
             isConnected = true;
+
+            // Start blinking immediately on connect
+            if (blinkAnimation != null)
+                blinkAnimation.play();
+            if (heartbeatTimeout != null)
+                heartbeatTimeout.playFromStart();
         }
     }
 
